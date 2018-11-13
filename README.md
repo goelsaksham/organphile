@@ -27,4 +27,4 @@ final report for the AI project.
 
 Date|Notebook|Model|Accuracy|Precision|Recall|Epochs|Time Window|Feature Window|Notes
 ----|--------|-----|--------|---------|------|------|-----------|--------------|-----
-Date|Notebook|Model|Accuracy|Precision|Recall|Epochs|Time Window|Feature Window|Notes
+11-13-2018|Vinall Binary RNN Model|Simple RNN|77.47%|-|-|20|1 sec only|147 X 300 - 300 steps| N/A
