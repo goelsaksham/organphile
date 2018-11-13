@@ -25,7 +25,6 @@ This section holds the results of the various experiments conducted during the c
 the hyperparameters for the type of training along with the model architecture so that these can be added to the 
 final report for the AI project.
 
-Date    |    Notebook    |    Model    |    Accuracy    |    Precision    |    Recall    |    Epochs    |    Time 
-Window    |    Feature Window    |    Notes    
-----|----|----|----|----|----|----|----|----|----
-    
+Date|Notebook|Model|Accuracy|Precision|Recall|Epochs|Time Window|Feature Window|Notes
+----|--------|-----|--------|---------|------|------|-----------|--------------|-----
+Date|Notebook|Model|Accuracy|Precision|Recall|Epochs|Time Window|Feature Window|Notes
