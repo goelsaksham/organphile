@@ -1,14 +1,30 @@
 # organphile
 Repository hosting code for my Introduction to Artificial Intelligence Project - Organphile (An Instrument Recognizer)
 
-## Data Exploration
+## Project Overview
+This is a project that corresponds to using different deep learning architectures for identifying which instrument is
+ being played in a particular audio excerpt. The goal of the project is to do real time classification for the 
+ instrument being played in a particular audio excerpt whether it is being heard from a microphone or is a audio 
+ file which has been recorded earlier. Currently for the project we are using IRMAS Dataset and more information 
+ about the dataset can be found in the following [section](#abcd). 
 
 
-## Data Creation
-This part of the project is responsible to read the data from the given input files and automatically convert the data into format that can be used to train the different machine learning and deep learning algorithms/architectures.
+## <a name="abcd">Dataset</a>
 
 
-## TODO:
+## Project Timeline
+
+
+## Project Components
+
+
+## Project Resources
+
+
+## Project Updates
+
+
+## Project TODO:
  * Create a Training Data Loader Script
    * Add functions to load training data from the .wav files
    * Zero Padding
@@ -18,6 +34,11 @@ This part of the project is responsible to read the data from the given input fi
    * Sliding Window on top of each data sample to convert it to a vector and time based 2-D array model
  * Create a Test Data Loader Script
     * Load the data from the .wav files in the test directory and attach the given class labels for that audio
+
+
+## Project Results
+
+
     
 ## Results
 
