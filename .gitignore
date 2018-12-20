@@ -108,3 +108,12 @@ venv.bak/
 
 # Whole Dataset Folder
 whole_dataset/
+
+#images
+*.jpg
+*.bmp
+*.jpeg
+*.png
+
+# audio files
+*.wav

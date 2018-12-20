@@ -1,84 +1,49 @@
-import numpy as np
-import os
-import glob
-from scipy.io import wavfile
+from .wav_file_funcs import *
 from typing import List
+from keras.preprocessing.sequence import pad_sequences
 
 
-def exist_directory(directory_path: str):
-    return os.path.isdir(directory_path)
+def slide_window(data_array: np.array, window_details: tuple):
+    if not len(data_array.shape) == 1:
+        raise ValueError(f'Invalid shape for the given data: {data_array.shape}')
+
+    window_size, window_advance = window_details
+    if (len(data_array) - window_size) % window_advance:
+        raise ValueError(f'Invalid window Specifications for the given data: {window_details}')
+
+    num_sliding_windows = ((len(data_array) - window_size) // window_advance) + 1
+
+    return data_array[np.arange(window_size)[None, :] + window_advance*np.arange(num_sliding_windows)[:, None]]
 
 
-def exist_file(file_path: str):
-    return os.path.isfile(file_path)
+def get_sound_feature_vectors_from_file(file_path: str, sound_signal_window: tuple, sequence_length: int = 132300,
+                                        normalize: bool = True, normalization_constant: int = 2**15,
+                                        shift: bool = False, shift_constant: int = 0):
+    """
+    :param file_path:
+    :param sound_signal_window:
+    :param sequence_length:
+    :param normalize:
+    :param normalization_constant:
+    :param shift:
+    :param shift_constant:
+    :return:
+    """
+    sound_signals = get_sound_signals(read_wav_file(file_path))
 
-
-def get_directory_contents(directory_path: str, pattern: str):
-    if exist_directory(directory_path):
-        # Get the current working directory
-        cwd = os.getcwd()
-        # Change the directory into the target directory path
-        os.chdir(directory_path)
-        # Get the list of directory contents
-        directory_contents = glob.glob(pattern)
-        # Change back to the original process working directory
-        os.chdir(cwd)
-        # Return back the directory contents
-        return directory_contents
-    else:
-        return []
-
-
-def get_subdirectory_names(directory_path: str):
-    return list(map(lambda subdirectory_name: subdirectory_name.replace('\\', '').replace('//', ''),
-                    get_directory_contents(directory_path, '*//')))
-
-
-def get_file_names(directory_path: str, file_extension: str):
-    return get_directory_contents(directory_path, f'*{file_extension}')
-
-
-def construct_path(directory_path: str, directory_content_name: str):
-    return os.path.join(directory_path, directory_content_name)
-
-
-def read_wav_file(file_path: str):
-    if exist_file(file_path):
-        return wavfile.read(file_path)
-    else:
-        return 44100, np.array([])
-
-
-def get_sound_signals(wav_file_data):
-    return wav_file_data[-1]
-
-
-def shift_sound_signals(sound_signals: np.array):
-    return np.int32(sound_signals + 2**15)
-
-
-def normalize_sound_signals(sound_signals: np.array):
-    return np.float32(sound_signals / (2. ** 15))
-
-
-def get_left_channel_data(sound_signals: np.array):
-    return sound_signals[:, 0]
-
-
-def get_right_channel_data(sound_signals: np.array):
-    return sound_signals[:, -1]
-
-
-def get_sound_feature_vectors_from_file(file_path: str, normalize: bool = True, shift: bool = False):
     if normalize:
-        sound_signals = normalize_sound_signals(get_sound_signals(read_wav_file(file_path)))
-    else:
-        sound_signals = get_sound_signals(read_wav_file(file_path))
-        if shift:
-            sound_signals = shift_sound_signals(sound_signals)
+        sound_signals = normalize_sound_signals(sound_signals, normalization_constant)
+    if shift:
+        sound_signals = shift_sound_signals(sound_signals, shift_constant)
+
     left_channel_feature_vector, right_channel_feature_vector = \
         get_left_channel_data(sound_signals), get_right_channel_data(sound_signals)
-    return left_channel_feature_vector, right_channel_feature_vector
+    left_channel_feature_vector, right_channel_feature_vector = \
+        pad_sequences([left_channel_feature_vector, right_channel_feature_vector],
+                      sequence_length, padding='post', truncating='post', dtype=np.float32)
+
+    return list(slide_window(left_channel_feature_vector, sound_signal_window)) + \
+           list(slide_window(right_channel_feature_vector, sound_signal_window))
 
 
 def stack_data(feature_matrix: np.array, left_channel_features: np.array, right_channel_features: np.array):
@@ -88,8 +53,10 @@ def stack_data(feature_matrix: np.array, left_channel_features: np.array, right_
         return np.vstack((feature_matrix, left_channel_features, right_channel_features))
 
 
-def get_class_data(parent_directory_path: str, class_label: str, number_of_examples: int = 0,
-                   normalize: bool = True, shift: bool = False):
+def get_class_data(parent_directory_path: str, class_label: str, number_of_examples: int = 1,
+                   sound_signal_window: tuple = (88200, 44100), sequence_length: int = 132300,
+                   normalize: bool = True, normalization_constant: int = 2 ** 15,
+                   shift: bool = False, shift_constant: int = 0):
     # Initializing the class feature matrix and target vector
     class_feature_matrix = []
     class_target_vector = []
@@ -97,48 +64,58 @@ def get_class_data(parent_directory_path: str, class_label: str, number_of_examp
     class_directory_path = construct_path(parent_directory_path, class_label)
     # Make sure the given path is correct
     if not exist_directory(class_directory_path):
-        return np.array(class_feature_matrix), np.array(class_target_vector)
+        raise ValueError(f'Invalid directory path. Directory name: {class_label}')
 
     # Get the names of the wav file belonging to the current class
-    wav_file_names = set(get_file_names(class_directory_path, '.wav'))
+    wav_file_names = get_file_names(class_directory_path, '.wav')
     # Get the subset of the classes, if want only limited number of training examples
     if number_of_examples:
         wav_file_names = wav_file_names[:np.abs(number_of_examples)]
+
     print(f'Processing: {len(wav_file_names)} files')
     # Iterate through each wav file
     for file_name in wav_file_names:
         file_path = construct_path(class_directory_path, file_name)
-        left_channel_features, right_channel_features = \
-            get_sound_feature_vectors_from_file(file_path, normalize, shift)
-        class_feature_matrix += [left_channel_features, right_channel_features]
-        class_target_vector += [class_label]*2
+        file_sound_features = \
+            get_sound_feature_vectors_from_file(file_path, sound_signal_window, sequence_length, normalize,
+                                                normalization_constant, shift, shift_constant)
+        class_feature_matrix += file_sound_features
+        class_target_vector += [class_label]*len(file_sound_features)
 
-    return np.array(class_feature_matrix), np.array(class_target_vector)
+    return class_feature_matrix, class_target_vector
 
 
-def load_irmas_data(parent_directory_path: str, class_labels_to_process: List[str],
-                    number_of_training_examples_per_class: int = 0, normalize: bool = True,
-                    shift: bool = False):
+def load_irmas_data(parent_directory_path: str, class_labels_to_process: List[str], rnn_window: tuple,
+                    number_of_training_examples_per_class: int = 1, sound_signal_window: tuple = (88200, 44100),
+                    sequence_length: int = 132300, normalize: bool = True, normalization_constant: int = 2 ** 15,
+                    shift: bool = False, shift_constant: int = 0):
     if not exist_directory(parent_directory_path):
-        print(f'Invalid directory: {parent_directory_path}')
+        raise ValueError(f'Invalid directory: {parent_directory_path}')
 
     class_labels = class_labels_to_process if class_labels_to_process else get_subdirectory_names(parent_directory_path)
 
-    feature_matrix = np.array([])
-    target_vector = np.array([])
+    feature_matrix = []
+    target_vector = []
 
     for class_label in class_labels:
         print(f'Getting Data from {class_label}')
-        class_feature_matrix, class_target_vector = get_class_data(parent_directory_path, class_label,
-                                                                   number_of_training_examples_per_class, normalize,
-                                                                   shift)
+        class_feature_matrix, class_target_vector = \
+            get_class_data(parent_directory_path, class_label, number_of_training_examples_per_class,
+                           sound_signal_window, sequence_length, normalize, normalization_constant, shift,
+                           shift_constant)
         print(f'Loaded all the data from the class')
-        if feature_matrix.size:
-            feature_matrix = np.vstack((feature_matrix, class_feature_matrix))
-            target_vector = np.hstack((target_vector, class_target_vector))
-        else:
-            feature_matrix = class_feature_matrix
-            target_vector = class_target_vector
+        # Adding the already loaded data
+        feature_matrix += class_feature_matrix
+        target_vector += class_target_vector
 
-    return feature_matrix, target_vector
+    return np.array(list(map(lambda feature: slide_window(feature, rnn_window), feature_matrix))), \
+           np.array(target_vector)
 
+
+def main():
+    X, y = load_irmas_data('../../data/whole_dataset/training/', ['cel'], (700, 700))
+    print(X.shape)
+
+
+if __name__ == '__main__':
+    main()
