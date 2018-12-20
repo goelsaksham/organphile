@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.io import wavfile
-from directory_funcs import *
+from .directory_funcs import *
 
 
 def read_wav_file(file_path: str):
